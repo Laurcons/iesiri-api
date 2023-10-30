@@ -1,0 +1,75 @@
+version: '3.7'
+
+# https://stackoverflow.com/questions/36283908/re-using-environment-variables-in-docker-compose-yml
+x-common-variables: &common-variables
+  - PORT=3000
+  - DATABASE_URL=${DATABASE_URL}
+  - JWT_SECRET=${JWT_SECRET}
+
+services:
+  backend-local:
+    profiles:
+      - local
+    build:
+      dockerfile: Dockerfile.local
+    ports:
+      - '${PORT}:3000'
+    depends_on:
+      - mysql-local
+    volumes:
+      - ./:/code:rw
+    environment: *common-variables
+
+  mysql-local:
+    profiles:
+      - local
+    image: mysql
+    environment:
+      - MYSQL_ALLOW_EMPTY_PASSWORD=true
+    volumes:
+      - ./db:/var/lib/mysql:rw
+
+  phpmyadmin-local:
+    profiles:
+      - local
+    image: phpmyadmin
+    ports:
+      - '${PHPMYADMIN_PORT}:80'
+    links:
+      - 'mysql-local:db'
+    depends_on:
+      - mysql-local
+      
+  backend-prod:
+    profiles:
+      - prod
+    build:
+      dockerfile: Dockerfile.prod
+    ports:
+      - '${PORT}:3000'
+    depends_on:
+      - mysql-prod
+    environment: *common-variables
+
+  mysql-prod:
+    profiles:
+      - prod
+    image: mysql
+    environment:
+      - MYSQL_RANDOM_ROOT_PASSWORD=yes
+      - MYSQL_USER=${MYSQL_USER}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+      - MYSQL_DATABASE=${MYSQL_DATABASE}
+    volumes:
+      - ./db:/var/lib/mysql:rw
+
+  phpmyadmin-prod:
+    profiles:
+      - prod
+    image: phpmyadmin
+    ports:
+      - '${PHPMYADMIN_PORT}:80'
+    links:
+      - 'mysql-prod:db'
+    depends_on:
+      - mysql-prod
